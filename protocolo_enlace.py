@@ -38,38 +38,50 @@ class Methods:
         """
         if not code_received: return None
         try:
-            start_idx = code_received.index(0x02)
-            while start_idx < len(code_received) and code_received[start_idx] == 0x02:
-                start_idx += 1
-            tg_to_process = code_received[start_idx:]
+            start_idx = code_received.index(STX)
+            start_idx += 1  # pula o STX inicial
         except ValueError:
             return None
 
-        clean_data = tg_to_process
+        raw = list(code_received[start_idx:])
+        clean_data = Methods.Unstuff(raw)
+
         payload = clean_data[:-2]
         received_cs = clean_data[-2:]
-        
+
         if Methods.CalcChecksums(payload) == list(received_cs):
             command = clean_data[0]
             num_params = clean_data[3]
-            parameters = clean_data[4:4+num_params]
+            parameters = clean_data[4:4 + num_params]
             return [command, parameters]
         else:
             return None
+        
+    def Stuff(data: list[int]) -> list[int]:
+        out = []
+        for b in data:
+            out.append(b)
+            if b == STX:
+                out.append(STX)  # dobra o 0x02 onde ele aparecer
+        return out
+
+    def Unstuff(data: list[int]) -> list[int]:
+        out = []
+        i = 0
+        while i < len(data):
+            out.append(data[i])
+            if data[i] == STX and i + 1 < len(data) and data[i+1] == STX:
+                i += 1
+            i += 1
+        return out
 
 def CriarTelegrama(command: int, parameters: list[int]) -> bytearray:
-    global STX
-    rx = 0x01 
-    tx = 0xff 
+    rx = 0x01
+    tx = 0xff
     nbr_par = len(parameters)
-    
-    telegram = [command, rx, tx, nbr_par]
-    for i in parameters:
-        telegram.append(i)
-        
+
+    telegram = [command, rx, tx, nbr_par] + parameters
     checksums = Methods.CalcChecksums(telegram)
-    full_unstuffed = telegram + checksums
-    if STX in full_unstuffed:    
-        return bytearray([STX, STX] + full_unstuffed)
-    else:
-        return bytearray([STX] + full_unstuffed)
+
+    full_stuffed = Methods.Stuff(telegram + checksums)
+    return bytearray([STX] + full_stuffed)

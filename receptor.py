@@ -23,6 +23,7 @@ def main():
             
             if Data is None:
                 print("[!] BAD CHECK SUMS detectado pelo receptor! Descartando lixo de rede...")
+                continue # avanca para o proximo loop ignorando tudo abaixo
             else: 
                 command, parameters = Data
 
